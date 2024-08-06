@@ -99,12 +99,12 @@ if __name__ == '__main__':
     # create Pub/Sub notification topic
     logging.basicConfig(format='%(levelname)s: %(message)s', level=logging.INFO)
     publisher = pubsub.PublisherClient()
-    event_type = publisher.topic_path(args.project, TOPIC)
+    topic_path = publisher.topic_path(args.project, TOPIC)
     try:
-        publisher.get_topic(event_type)
+        publisher.get_topic(request={"name": topic_path})
         logging.info('Reusing pub/sub topic {}'.format(TOPIC))
     except:
-        publisher.create_topic(event_type)
+        publisher.create_topic(request={"name": topic_path})
         logging.info('Creating pub/sub topic {}'.format(TOPIC))
 
     # notify about each line in the input file
@@ -113,4 +113,4 @@ if __name__ == '__main__':
         header = ifp.readline()  # skip header
         firstObsTime = peek_timestamp(ifp)
         logging.info('Sending sensor data from {}'.format(firstObsTime))
-        simulate(event_type, ifp, firstObsTime, programStartTime, args.speedFactor)
+        simulate(topic_path, ifp, firstObsTime, programStartTime, args.speedFactor)
