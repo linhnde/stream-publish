@@ -35,7 +35,7 @@ os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "pubsub-credentials.json"
 def publish(publisher, topic, events):
     numobs = len(events)
     if numobs > 0:
-        logging.info('Publishing {0} events from {1}'.format(numobs, get_timestamp(events[0])))
+        logging.info(f"Publishing {numobs} events from {get_timestamp(events[0])}")
         for event_data in events:
             publisher.publish(topic, event_data)
 
@@ -72,7 +72,7 @@ def simulate(topic, ifp, firstObsTime, programStart, speedFactor):
             # recompute sleep, since notification takes a while
             to_sleep_secs = compute_sleep_secs(obs_time)
             if to_sleep_secs > 0:
-                logging.info('Sleeping {} seconds'.format(to_sleep_secs))
+                logging.info(f"Sleeping {to_sleep_secs} seconds")
                 time.sleep(to_sleep_secs)
         to_publish.append(event_data)
 
@@ -102,15 +102,15 @@ if __name__ == '__main__':
     topic_path = publisher.topic_path(args.project, TOPIC)
     try:
         publisher.get_topic(request={"name": topic_path})
-        logging.info('Reusing pub/sub topic {}'.format(TOPIC))
+        logging.info(f"Reusing pub/sub topic {TOPIC}")
     except:
         publisher.create_topic(request={"name": topic_path})
-        logging.info('Creating pub/sub topic {}'.format(TOPIC))
+        logging.info(f"Creating pub/sub topic '{TOPIC}'")
 
     # notify about each line in the input file
     programStartTime = datetime.datetime.now(datetime.UTC)
     with gzip.open(INPUT, 'rb') as ifp:
         header = ifp.readline()  # skip header
         firstObsTime = peek_timestamp(ifp)
-        logging.info('Sending sensor data from {}'.format(firstObsTime))
+        logging.info(f'Sending sensor data from {firstObsTime}')
         simulate(topic_path, ifp, firstObsTime, programStartTime, args.speedFactor)
