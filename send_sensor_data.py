@@ -20,10 +20,12 @@ import logging
 import argparse
 import datetime
 from google.cloud import pubsub
+import os
 
 TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
-TOPIC = 'sandiego'
+TOPIC = 'test_publish'
 INPUT = 'sensor_obs2008.csv.gz'
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "pubsub-credentials.json"
 
 
 def publish(publisher, topic, events):
