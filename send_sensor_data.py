@@ -14,12 +14,16 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-import time
-import gzip
-import logging
+import os
 import argparse
 import datetime
+import gzip
+import logging
+import time
+
 from google.cloud import pubsub
+
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "pubsub-credentials.json"
 
 TIME_FORMAT = '%Y-%m-%d %H:%M:%S'
 TOPIC = 'sandiego'
