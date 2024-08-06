@@ -32,12 +32,12 @@ INPUT = 'sensor_obs2008.csv.gz'
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = "pubsub-credentials.json"
 
 
-def publish(publisher, topic, events):
-    numobs = len(events)
-    if numobs > 0:
-        logging.info(f"Publishing {numobs} events from {get_timestamp(events[0])}")
+def publish(publisher_name, topic, events):
+    num_obs = len(events)
+    if num_obs > 0:
+        logging.info(f"Publishing {num_obs} events from {get_timestamp(events[0])}")
         for event_data in events:
-            publisher.publish(topic, event_data)
+            publisher_name.publish(topic, event_data)
 
 
 def get_timestamp(line):
@@ -49,42 +49,49 @@ def get_timestamp(line):
     return datetime.datetime.strptime(timestamp, TIME_FORMAT)
 
 
-def simulate(topic, ifp, firstObsTime, programStart, speedFactor):
+def simulate(topic, items, firstObservedTime, programStart, speedFactor):
     # sleep computation
-    def compute_sleep_secs(obs_time):
-        time_elapsed = (datetime.datetime.now(datetime.UTC) - programStart).seconds
-        sim_time_elapsed = ((obs_time - firstObsTime).days * 86400.0 + (obs_time - firstObsTime).seconds) / speedFactor
-        to_sleep_secs = sim_time_elapsed - time_elapsed
+    def compute_sleep_secs(observed_time):
+        # Current time minus starting time, converting to seconds
+        time_elapsed_secs = (datetime.datetime.now(datetime.UTC) - programStart).seconds
+        print(f"time_elapsed_secs = {time_elapsed_secs}")
+        # Current time of line minus time of first line
+        sim_time_elapsed = observed_time - firstObservedTime
+        print(f"sim_time_elapsed = {sim_time_elapsed}")
+        # Convert to seconds and increase speed of streaming
+        # i.e. speedFactor=60 meaning instead of streaming every 5 minutes, it would be 5 seconds
+        sim_time_elapsed_secs = (sim_time_elapsed.days * 60 * 60 * 24 + sim_time_elapsed.seconds) / speedFactor
+        print(f"sim_time_elapsed_secs = {sim_time_elapsed_secs}")
+        to_sleep_secs = sim_time_elapsed_secs - time_elapsed_secs
+        print(f"to_sleep_secs = {to_sleep_secs}")
         return to_sleep_secs
 
     to_publish = list()
 
-    for line in ifp:
+    for line in items:
         event_data = line  # entire line of input CSV is the message
         obs_time = get_timestamp(line)  # from first column
 
-        # how much time should we sleep?
+        # Not publish first observed time, but append it to waiting list for publishing in the next time frame
         if compute_sleep_secs(obs_time) > 1:
-            # notify the accumulated to_publish
-            publish(publisher, topic, to_publish)  # notify accumulated messages
-            to_publish = list()  # empty out list
+            publish(publisher, topic, to_publish)  # Notify the accumulated to_publish
+            to_publish = list()  # Empty out list
 
-            # recompute sleep, since notification takes a while
-            to_sleep_secs = compute_sleep_secs(obs_time)
-            if to_sleep_secs > 0:
-                logging.info(f"Sleeping {to_sleep_secs} seconds")
-                time.sleep(to_sleep_secs)
+            to_sleep_time = compute_sleep_secs(obs_time)  # Recompute sleep, since notification takes a while
+            if to_sleep_time > 0:
+                logging.info(f"Sleeping {to_sleep_time} seconds")
+                time.sleep(to_sleep_time)
         to_publish.append(event_data)
 
     # left-over records; notify again
     publish(publisher, topic, to_publish)
 
 
-def peek_timestamp(ifp):
-    # peek ahead to next line, get timestamp and go back
-    pos = ifp.tell()
-    line = ifp.readline()
-    ifp.seek(pos)
+def peek_timestamp(items):
+    # Peek ahead to next line, get timestamp and go back, only use to get timestamp of first event
+    pos = items.tell()
+    line = items.readline()
+    items.seek(pos)
     return get_timestamp(line)
 
 
@@ -109,8 +116,9 @@ if __name__ == '__main__':
 
     # notify about each line in the input file
     programStartTime = datetime.datetime.now(datetime.UTC)
-    with gzip.open(INPUT, 'rb') as ifp:
-        header = ifp.readline()  # skip header
-        firstObsTime = peek_timestamp(ifp)
+    print(f"programStartTime = {programStartTime}")
+    with gzip.open(INPUT, 'rb') as data_to_publish:
+        header = data_to_publish.readline()     # Skip header
+        firstObsTime = peek_timestamp(data_to_publish)      # Get timestamp of first event
         logging.info(f'Sending sensor data from {firstObsTime}')
-        simulate(topic_path, ifp, firstObsTime, programStartTime, args.speedFactor)
+        simulate(topic_path, data_to_publish, firstObsTime, programStartTime, args.speedFactor)
