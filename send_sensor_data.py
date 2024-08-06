@@ -41,7 +41,7 @@ def publish(publisher, topic, events):
 
 
 def get_timestamp(line):
-    ## convert from bytes to str
+    # convert from bytes to str
     line = line.decode('utf-8')
 
     # look at first field of row
@@ -52,12 +52,12 @@ def get_timestamp(line):
 def simulate(topic, ifp, firstObsTime, programStart, speedFactor):
     # sleep computation
     def compute_sleep_secs(obs_time):
-        time_elapsed = (datetime.datetime.utcnow() - programStart).seconds
+        time_elapsed = (datetime.datetime.now(datetime.UTC) - programStart).seconds
         sim_time_elapsed = ((obs_time - firstObsTime).days * 86400.0 + (obs_time - firstObsTime).seconds) / speedFactor
         to_sleep_secs = sim_time_elapsed - time_elapsed
         return to_sleep_secs
 
-    topublish = list()
+    to_publish = list()
 
     for line in ifp:
         event_data = line  # entire line of input CSV is the message
@@ -65,19 +65,19 @@ def simulate(topic, ifp, firstObsTime, programStart, speedFactor):
 
         # how much time should we sleep?
         if compute_sleep_secs(obs_time) > 1:
-            # notify the accumulated topublish
-            publish(publisher, topic, topublish)  # notify accumulated messages
-            topublish = list()  # empty out list
+            # notify the accumulated to_publish
+            publish(publisher, topic, to_publish)  # notify accumulated messages
+            to_publish = list()  # empty out list
 
             # recompute sleep, since notification takes a while
             to_sleep_secs = compute_sleep_secs(obs_time)
             if to_sleep_secs > 0:
                 logging.info('Sleeping {} seconds'.format(to_sleep_secs))
                 time.sleep(to_sleep_secs)
-        topublish.append(event_data)
+        to_publish.append(event_data)
 
     # left-over records; notify again
-    publish(publisher, topic, topublish)
+    publish(publisher, topic, to_publish)
 
 
 def peek_timestamp(ifp):
@@ -108,7 +108,7 @@ if __name__ == '__main__':
         logging.info('Creating pub/sub topic {}'.format(TOPIC))
 
     # notify about each line in the input file
-    programStartTime = datetime.datetime.utcnow()
+    programStartTime = datetime.datetime.now(datetime.UTC)
     with gzip.open(INPUT, 'rb') as ifp:
         header = ifp.readline()  # skip header
         firstObsTime = peek_timestamp(ifp)
