@@ -1,2 +1,2 @@
 *.json
-/sensor_obs2008.csv.gz
+*.gz
